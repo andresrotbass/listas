@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mis listas</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #0E0E10; font-family: 'DM Sans', sans-serif; min-height: 100vh; color: #F2F2F4; }
+
+  .screen { display: none; max-width: 480px; margin: 0 auto; padding-bottom: 32px; }
+  .screen.active { display: block; }
+
+  /* ── SYNC DOT ── */
+  .sync-bar { position: fixed; top: 14px; right: 16px; display: flex; align-items: center; gap: 6px; z-index: 999; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; transition: background 0.3s; }
+  .sync-dot.ok      { background: #2AB87E; }
+  .sync-dot.err     { background: #E24B4A; }
+  .sync-dot.loading { background: #E09020; animation: pulse 0.8s infinite; }
+  .sync-label { font-size: 11px; color: #666; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── HOME ── */
+  .home-header { padding: 48px 20px 24px; text-align: center; }
+  .home-title { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: #F2F2F4; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .home-sub { font-size: 14px; color: #777; }
+  .blocks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 16px; }
+  .block-card {
+    border-radius: 28px; padding: 22px 18px 20px; cursor: pointer; border: none;
+    text-align: left; width: 100%; position: relative; min-height: 160px;
+    display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.12s;
+  }
+  .block-card:active { transform: scale(0.95); }
+  .bc-todo          { background: #7B6EE8; }
+  .bc-comprar       { background: #2AB87E; }
+  .bc-recordatorios { background: #E09020; }
+  .bc-misc          { background: #8870CC; }
+  .block-emoji { font-size: 30px; margin-bottom: 12px; display: block; }
+  .block-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: #fff; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 4px; }
+  .block-count { font-size: 12px; color: rgba(255,255,255,0.65); }
+  .block-arrow { position: absolute; bottom: 18px; right: 18px; font-size: 20px; color: rgba(255,255,255,0.4); }
+  .block-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .badge-urgent { font-size: 11px; font-weight: 500; background: rgba(0,0,0,0.3); color: #FFB0B0; border-radius: 10px; padding: 3px 8px; border: 1px solid rgba(255,100,100,0.5); }
+  .badge-done   { font-size: 11px; background: rgba(255,255,255,0.22); color: rgba(255,255,255,0.9); border-radius: 10px; padding: 3px 8px; }
+
+  /* ── MISC SHEET ── */
+  .sheet-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: flex-end; justify-content: center; padding: 0 16px 32px; }
+  .sheet-overlay.open { display: flex; }
+  .sheet { background: #18181E; border-radius: 28px; padding: 24px 20px 20px; width: 100%; max-width: 480px; animation: sheetUp 0.2s ease; }
+  @keyframes sheetUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+  .sheet-label { font-size: 11px; font-weight: 700; color: #666; letter-spacing: 0.14em; text-transform: uppercase; font-family: 'Syne', sans-serif; text-align: center; margin-bottom: 16px; }
+  .sub-btn { display: flex; align-items: center; gap: 14px; width: 100%; background: #242430; border: 0.5px solid #3A3A4A; border-radius: 20px; padding: 16px 18px; cursor: pointer; margin-bottom: 10px; text-align: left; transition: transform 0.1s; }
+  .sub-btn:active { transform: scale(0.97); opacity: 0.85; }
+  .sub-emoji { font-size: 22px; }
+  .sub-info { flex: 1; }
+  .sub-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: #F2F2F4; letter-spacing: 0.05em; text-transform: uppercase; }
+  .sub-count { font-size: 12px; color: #666; margin-top: 2px; }
+  .sub-urg { font-size: 11px; background: rgba(220,50,50,0.22); color: #FF8888; border-radius: 8px; padding: 2px 7px; margin-top: 4px; display: inline-block; }
+  .sub-arrow { color: #555; font-size: 18px; }
+  .cancel-btn { width: 100%; margin-top: 12px; background: #1E1E24; border: 0.5px solid #2E2E38; border-radius: 20px; padding: 15px; color: #888; font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .cancel-btn:active { opacity: 0.7; }
+
+  /* ── DETAIL ── */
+  .detail-header { display: flex; align-items: center; gap: 12px; padding: 52px 16px 16px; border-bottom: 0.5px solid #1E1E24; }
+  .back-btn { background: #1E1E28; border: 0.5px solid #3A3A4A; border-radius: 18px; padding: 8px 16px; cursor: pointer; font-size: 15px; color: #ccc; font-family: 'DM Sans', sans-serif; flex-shrink: 0; }
+  .back-btn:active { opacity: 0.7; }
+  .detail-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #F2F2F4; text-transform: uppercase; letter-spacing: 0.07em; }
+  .add-row { display: flex; gap: 10px; padding: 14px 16px; border-bottom: 0.5px solid #1A1A20; }
+  .add-input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 11px 16px; border-radius: 20px; border: 0.5px solid #3A3A4A; background: #1A1A22; color: #F2F2F4; outline: none; }
+  .add-input::placeholder { color: #555; }
+  .add-input:focus { border-color: #666; }
+  .add-btn { font-size: 24px; padding: 10px 18px; border-radius: 20px; border: none; cursor: pointer; color: #fff; line-height: 1; flex-shrink: 0; }
+  .add-btn:active { opacity: 0.75; transform: scale(0.95); }
+  .items-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .item-card { display: flex; align-items: center; gap: 10px; background: #1A1A22; border: 0.5px solid #2E2E3A; border-radius: 20px; padding: 13px 12px; animation: slideIn 0.18s ease; }
+  .item-card.urgent { border-color: rgba(230,60,60,0.65); background: #201016; }
+  .item-card.done   { opacity: 0.38; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .check-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #555; background: transparent; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; transition: all 0.15s; }
+  .check-btn.checked { border-color: transparent; }
+  .item-text { flex: 1; font-size: 15px; color: #E0E0E4; line-height: 1.4; }
+  .item-card.done .item-text { text-decoration: line-through; color: #555; }
+  .urgent-btn { background: #222230; border: 1.5px solid #3A3A4A; border-radius: 10px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #777; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+  .urgent-btn.on { background: rgba(220,50,50,0.22); border-color: rgba(220,50,50,0.7); color: #FF5555; }
+  .urgent-btn:active { opacity: 0.7; }
+  .del-btn { background: none; border: none; cursor: pointer; color: #444; font-size: 22px; padding: 2px 5px; line-height: 1; flex-shrink: 0; }
+  .del-btn:active { color: #E24B4A; }
+  .empty-state { text-align: center; padding: 60px 20px; color: #555; font-size: 15px; }
+  .empty-icon { font-size: 42px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="sync-bar" id="sync-bar">
+  <div class="sync-dot loading" id="sync-dot"></div>
+  <span class="sync-label" id="sync-label">Cargando...</span>
+</div>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="home-header">
+    <div class="home-title">Mis listas</div>
+    <div class="home-sub">Tocá una lista para abrirla</div>
+  </div>
+  <div class="blocks-grid" id="blocks-grid"></div>
+</div>
+
+<!-- MISC SHEET -->
+<div class="sheet-overlay" id="misc-overlay" onclick="closeMisc(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-label">Misc</div>
+    <div id="misc-sub-list"></div>
+    <button class="cancel-btn" onclick="closeMisc()">Cancelar</button>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="screen" id="screen-detail">
+  <div class="detail-header">
+    <button class="back-btn" onclick="goHome()">← Volver</button>
+    <span class="detail-title" id="d-title"></span>
+  </div>
+  <div class="add-row">
+    <input class="add-input" id="add-input" placeholder="Agregar..." onkeydown="if(event.key==='Enter')addItem()">
+    <button class="add-btn" id="add-btn" onclick="addItem()">+</button>
+  </div>
+  <div class="items-list" id="items-list"></div>
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="empty-icon" id="empty-icon"></div>
+    <div id="empty-msg"></div>
+  </div>
+</div>
+
+<script>
+// ─── CREDENCIALES ─────────────────────────────────────────
+const API_KEY = '$2a$10$xCXmgGnK0orl0HrOybdrVObKEkl/Ybykv7ASn8WAs0.2IgHRRvEZK';
+const BIN_ID  = '69f7c36936566621a81f73db';
+
+// ─── SECCIONES ────────────────────────────────────────────
+const MAIN = [
+  { id:'todo',          name:'To Do',        emoji:'✅', color:'#7B6EE8' },
+  { id:'comprar',       name:'Comprar',       emoji:'🛒', color:'#2AB87E' },
+  { id:'recordatorios', name:'Recordatorios', emoji:'🔔', color:'#E09020' },
+];
+const MISC_SUBS = [
+  { id:'amigos', name:'Amigos', emoji:'👥', color:'#9A7AE0' },
+  { id:'jasu',   name:'Jasu',   emoji:'⭐', color:'#3A90D0' },
+  { id:'random', name:'Random', emoji:'🎲', color:'#48B888' },
+];
+const ALL = [...MAIN, ...MISC_SUBS];
+const data = {};
+ALL.forEach(s => data[s.id] = []);
+let cur = null, idc = 0;
+
+// ─── SYNC UI ──────────────────────────────────────────────
+function setSync(state, label) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + state;
+  document.getElementById('sync-label').textContent = label;
+}
+
+// ─── JSONBIN ──────────────────────────────────────────────
+async function loadFromBin() {
+  setSync('loading', 'Cargando...');
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    const p = json.record;
+    if (p && p.data) ALL.forEach(s => { if (p.data[s.id]) data[s.id] = p.data[s.id]; });
+    if (p && p.idc)  idc = p.idc;
+    setSync('ok', 'Sincronizado');
+  } catch(e) {
+    setSync('err', 'Sin conexión');
+    try {
+      const b = JSON.parse(localStorage.getItem('jb_backup') || 'null');
+      if (b && b.data) { ALL.forEach(s=>{if(b.data[s.id])data[s.id]=b.data[s.id];}); if(b.idc)idc=b.idc; }
+    } catch(_){}
+  }
+  renderHome();
+}
+
+let saveTimer;
+function saveToBin() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    setSync('loading', 'Guardando...');
+    try {
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+        body: JSON.stringify({ data, idc })
+      });
+      if (!res.ok) throw new Error();
+      setSync('ok', 'Guardado');
+      try { localStorage.setItem('jb_backup', JSON.stringify({data,idc})); } catch(_){}
+    } catch(e) {
+      setSync('err', 'Error al guardar');
+      try { localStorage.setItem('jb_backup', JSON.stringify({data,idc})); } catch(_){}
+    }
+  }, 700);
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function urg(id){ return data[id].filter(i=>i.urgent&&!i.done).length; }
+function miscUrg(){ return MISC_SUBS.reduce((s,x)=>s+urg(x.id),0); }
+function miscTotal(){ return MISC_SUBS.reduce((s,x)=>s+data[x.id].length,0); }
+function miscDone(){ return MISC_SUBS.reduce((s,x)=>s+data[x.id].filter(i=>i.done).length,0); }
+
+// ─── HOME ─────────────────────────────────────────────────
+function renderHome(){
+  let h = MAIN.map(s=>{
+    const items=data[s.id],t=items.length,d=items.filter(i=>i.done).length,u=urg(s.id);
+    return `<button class="block-card bc-${s.id}" onclick="openSec('${s.id}')">
+      <div>
+        <span class="block-emoji">${s.emoji}</span>
+        <div class="block-name">${s.name}</div>
+        <div class="block-count">${t} item${t!==1?'s':''}</div>
+        <div class="block-badges">
+          ${u>0?`<span class="badge-urgent">! ${u} urgente${u!==1?'s':''}</span>`:''}
+          ${d>0?`<span class="badge-done">${d} listo${d!==1?'s':''}</span>`:''}
+        </div>
+      </div><span class="block-arrow">›</span>
+    </button>`;
+  }).join('');
+  const mT=miscTotal(),mU=miscUrg(),mD=miscDone();
+  h+=`<button class="block-card bc-misc" onclick="openMisc()">
+    <div>
+      <span class="block-emoji">🗂️</span>
+      <div class="block-name">Misc</div>
+      <div class="block-count">${mT} item${mT!==1?'s':''}</div>
+      <div class="block-badges">
+        ${mU>0?`<span class="badge-urgent">! ${mU} urgente${mU!==1?'s':''}</span>`:''}
+        ${mD>0?`<span class="badge-done">${mD} listo${mD!==1?'s':''}</span>`:''}
+      </div>
+    </div><span class="block-arrow">›</span>
+  </button>`;
+  document.getElementById('blocks-grid').innerHTML = h;
+}
+
+// ─── MISC ─────────────────────────────────────────────────
+function openMisc(){
+  document.getElementById('misc-sub-list').innerHTML = MISC_SUBS.map(s=>{
+    const t=data[s.id].length,u=urg(s.id);
+    return `<button class="sub-btn" onclick="openSec('${s.id}');closeMisc();">
+      <span class="sub-emoji">${s.emoji}</span>
+      <div class="sub-info">
+        <div class="sub-name">${s.name}</div>
+        <div class="sub-count">${t} item${t!==1?'s':''}</div>
+        ${u>0?`<span class="sub-urg">! ${u} urgente${u!==1?'s':''}</span>`:''}
+      </div><span class="sub-arrow">›</span>
+    </button>`;
+  }).join('');
+  document.getElementById('misc-overlay').classList.add('open');
+}
+function closeMisc(e){
+  if(!e||e.target===document.getElementById('misc-overlay'))
+    document.getElementById('misc-overlay').classList.remove('open');
+}
+
+// ─── DETAIL ───────────────────────────────────────────────
+function openSec(id){
+  cur=id; const s=ALL.find(x=>x.id===id);
+  document.getElementById('screen-home').classList.remove('active');
+  document.getElementById('screen-detail').classList.add('active');
+  document.getElementById('d-title').textContent=s.name;
+  document.getElementById('add-btn').style.background=s.color;
+  document.getElementById('add-input').value='';
+  renderDetail();
+  setTimeout(()=>document.getElementById('add-input').focus(),80);
+}
+function goHome(){
+  cur=null;
+  document.getElementById('screen-detail').classList.remove('active');
+  document.getElementById('screen-home').classList.add('active');
+  renderHome();
+}
+function addItem(){
+  const inp=document.getElementById('add-input'),t=inp.value.trim();
+  if(!t)return;
+  data[cur].unshift({id:++idc,text:t,done:false,urgent:false});
+  inp.value=''; renderDetail(); saveToBin();
+}
+function toggleItem(id){
+  const i=data[cur].find(x=>x.id===id);
+  if(i){i.done=!i.done;renderDetail();saveToBin();}
+}
+function toggleUrgent(id){
+  const i=data[cur].find(x=>x.id===id);
+  if(i){i.urgent=!i.urgent;renderDetail();saveToBin();}
+}
+function deleteItem(id){
+  data[cur]=data[cur].filter(x=>x.id!==id);
+  renderDetail(); saveToBin();
+}
+function renderDetail(){
+  const items=data[cur],s=ALL.find(x=>x.id===cur);
+  const list=document.getElementById('items-list'),empty=document.getElementById('empty-state');
+  if(!items.length){
+    list.innerHTML='';empty.style.display='block';
+    document.getElementById('empty-icon').textContent=s.emoji;
+    document.getElementById('empty-msg').textContent='Nada en '+s.name+' todavía';
+    return;
+  }
+  empty.style.display='none';
+  const sorted=[
+    ...items.filter(i=>i.urgent&&!i.done),
+    ...items.filter(i=>!i.urgent&&!i.done),
+    ...items.filter(i=>i.done),
+  ];
+  list.innerHTML=sorted.map(item=>`
+    <div class="item-card${item.urgent&&!item.done?' urgent':''}${item.done?' done':''}">
+      <button class="check-btn${item.done?' checked':''}"
+        style="${item.done?'background:'+s.color+';border-color:transparent':''}"
+        onclick="toggleItem(${item.id})">${item.done?'✓':''}</button>
+      <span class="item-text">${esc(item.text)}</span>
+      <button class="urgent-btn${item.urgent?' on':''}" onclick="toggleUrgent(${item.id})">!</button>
+      <button class="del-btn" onclick="deleteItem(${item.id})">×</button>
+    </div>
+  `).join('');
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+loadFromBin();
+</script>
+</body>
+</html>
